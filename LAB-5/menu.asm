@@ -7,7 +7,7 @@ STDIN_FILE_DESCR equ 0  ; standart input file descriptor
 STDOUT_FILE_DESCR equ 1 ; standart output file descriptor
 STDERR_FILE_DESCR equ 2 ; standart error file descriptor
 
-%include "test.asm"
+; %include "test.asm"
 
 section .data
     random_generated_numbers_message db 'Generated Numbers: ', 0
@@ -61,11 +61,23 @@ section .data
 
     input_substring_message db 'Input Substring: ', 0
     output_substring_message db 'Your Substring: ', 0
+    found_substring_message db 'Substring found on index: ', 0
+    not_found_substring_message db 'Substring is not found.', 0xa, 0
+
+    input_substring_to_replace_message db 'Input Substring that you want to replace: ', 0
+    input_substring_replacement_message db 'Input Replacement Substring: ', 0
+    output_substring_to_replace_message db 'To Replace: ', 0
+    output_substring_replacement_message db 'Replacement: ', 0
+
+    input_character_message db 'Input character that will be removed: ', 0
+    output_character_message db 'Your character: ', 0
+    no_character_found_message db 'This character is not present in the original string', 0xa, 0
+
 section .bss
     user_choice resb 2 ; reserve 2 bytes for User Choice
     buffer resb 22     ; Buffer to hold the resulting string (up to 20 characters + whitespace + null terminator)
 
-    ; Task 1
+    ; Task 1, 4, 3, 9
     string_1 resb 256
     string_2 resb 256
     result_string resb 256*2
@@ -73,6 +85,12 @@ section .bss
     ; Task 35
     lower_bound_task_rnd resq 10
     upper_bound_task_rnd resq 10
+
+    ; Task 4
+    string_3 resb 256
+
+    ; Task 5
+    character resb 1
 section .text
     global _start
 _start:
@@ -459,6 +477,131 @@ _option2Selected:
     mov rcx, string_1
     mov rdx, string_2
     call _compare_strings
+    
+    cmp r12, 0
+    je .no_substring_found
+    jne .substring_is_found
+    .no_substring_found: 
+        mov rax, not_found_substring_message
+        call _print
+    .substring_is_found:
+        mov rdi, string_1     ; Destination pointer for string_1
+        mov rcx, 256          ; Number of bytes to clear
+        rep stosb             ; Clear string_1
+
+        mov rdi, string_2     ; Destination pointer for string_2
+        mov rcx, 256          ; Number of bytes to clear
+        rep stosb             ; Clear string_2
+        xor rcx, rcx
+        xor rdx, rdx
+        xor r8, r8
+        xor r9, r9
+        xor r10, r10
+        xor r11, r11
+        xor r12, r12
+        jmp _menu
+
+_compare_strings:
+    mov r10, 0 ; index of substring found
+    mov r11, 0
+    mov r12, 0
+    ; Compare two null-terminated strings pointed to by rcx and rdx
+    .loop:
+        mov al, [rcx]
+        cmp al, 0
+        je .exit_loop
+        cmp al, [rdx]
+        jne .mismatch
+        je .match
+        jmp .loop
+    .match:
+        inc rcx
+        inc rdx
+        inc r11
+        cmp byte [rdx], 0
+        je .found_substring
+        cmp byte [rcx], 0
+        je .exit_loop
+        jmp .loop
+    .mismatch:
+        inc rcx
+        inc r10
+        jmp .loop
+    .found_substring:
+        sub rdx, r11
+        mov r12, r11
+        push rdx
+        push rcx
+        mov rax, found_substring_message
+        call _print
+        mov rax, r10
+        mov rbx, 10
+        
+        call _convert_to_string
+        mov rax, rdi
+        call _print
+        mov rax, new_line
+        call _print
+        pop rcx
+        pop rdx
+        add r10, r12
+        xor r11, r11
+        jmp .loop
+    .exit_loop:
+        ret
+
+_option3Selected:
+    mov rax, selected_option_3
+    call _print
+
+    mov rax, input_substring_message
+    call _print
+    mov rsi, string_1
+    call _getStrings_Task
+
+    call _findLengthString
+    mov r8, rcx
+    mov rax, output_user_string_message
+    call _print
+    mov rax, string_1
+    call _print
+    mov rax, new_line
+    call _print
+
+    mov rax, input_substring_to_replace_message
+    call _print
+    mov rsi, string_2
+    call _getStrings_Task
+    call _findLengthString
+    mov r9, rcx
+
+    mov rax, output_substring_to_replace_message
+    call _print
+    mov rax, string_2
+    call _print
+    mov rax, new_line
+    call _print
+
+    mov rax, input_substring_replacement_message
+    call _print
+    mov rsi, string_3
+    call _getStrings_Task
+    call _findLengthString
+    mov r10, rcx
+
+    mov rax, output_substring_replacement_message
+    call _print
+    mov rax, string_3
+    call _print
+    mov rax, new_line
+    call _print
+
+    mov rcx, string_1
+    mov rdx, string_2
+    mov rbx, string_3
+    ; rcx - original string rdx - original substring rbx - replacement substring
+    call _replace_substring
+
 
     mov rdi, string_1     ; Destination pointer for string_1
     mov rcx, 256          ; Number of bytes to clear
@@ -468,41 +611,65 @@ _option2Selected:
     mov rcx, 256          ; Number of bytes to clear
     rep stosb             ; Clear string_2
 
+    mov rdi, string_3     ; Destination pointer for string_2
+    mov rcx, 256          ; Number of bytes to clear
+    rep stosb             ; Clear string_3
+
+    xor r8, r8
+    xor r9, r9
+    ; xor r10, r10
     jmp _menu
 
-_compare_strings:
+_replace_substring:
     mov r10, 0 ; index of substring found
+    mov r11, 0
+    mov r12, 0
     ; Compare two null-terminated strings pointed to by rcx and rdx
     .loop:
         mov al, [rcx]
+        cmp al, 0
+        je .exit_loop
         cmp al, [rdx]
         jne .mismatch
         je .match
-        inc r10
         jmp .loop
     .match:
         inc rcx
         inc rdx
-        cmp rcx, 0
+        inc r11
+        cmp byte [rdx], 0
         je .found_substring
-        cmp rdx, 0
+        cmp byte [rcx], 0
         je .exit_loop
         jmp .loop
     .mismatch:
         inc rcx
+        inc r10
         jmp .loop
     .found_substring:
-        sub rcx, r10
+        sub rdx, r11
+        mov r12, r11
+        push rdx
+        push rcx
+        mov rax, found_substring_message
         call _print
-        ret
+        mov rax, r10
+        mov rbx, 10
+        call _convert_to_string
+        mov rax, rdi
+        call _print
+        mov rax, new_line
+        call _print
+
+        
+
+        pop rcx
+        pop rdx
+        add r10, r12
+        xor r11, r11
+        jmp .loop
     .exit_loop:
         ret
-
-_option3Selected:
-    mov rax, selected_option_3
-    call _print
-    jmp _menu
-
 _option4Selected:
     mov rax, selected_option_4
     call _print
@@ -578,7 +745,97 @@ _findLengthString:
 _option5Selected:
     mov rax, selected_option_5
     call _print
+
+    mov rax, input_string_message
+    call _print
+    mov rsi, string_1
+    call _getStrings_Task
+
+    mov rax, output_user_string_message
+    call _print
+    mov rax, string_1
+    call _print
+    mov rax, new_line
+    call _print
+    
+    mov rax, input_character_message
+    call _print
+    mov rsi, character
+    call _getStrings_Task
+
+    mov rax, output_character_message
+    call _print
+    mov rax, character
+    call _print
+    mov rax, new_line
+    call _print
+
+    mov rcx, string_1
+    mov rdx, character
+    call _delete_character
+    
+    cmp r9, 0
+    je .no_character
+    jne .character_found
+    .no_character:
+        mov rax, no_character_found_message
+        call _print
+    .character_found:
+        mov rax, output_string_message
+        call _print
+        mov rax, string_2
+        call _print
+        mov rax, new_line
+        call _print
+
+    mov rdi, string_1     ; Destination pointer for string_1
+    mov rcx, 256          ; Number of bytes to clear
+    rep stosb             ; Clear string_1
+
+    mov rdi, string_2     ; Destination pointer for string_2
+    mov rcx, 256          ; Number of bytes to clear
+    rep stosb             ; Clear string_2
+
+    mov rdi, character    ; Destination pointer for character
+    mov rcx, 1            ; Number of bytes to clear
+    rep stosb             ; Clear character
+
+    xor rax, rax
+    xor rbx, rbx
+    xor rdx, rdx
+    xor rcx, rcx
+    xor r8, r8
+    xor r9, r9
     jmp _menu
+
+; Procedure that deletes a certain character from the original string input from user
+; Input: rcx - original string
+;        rdx - character to be deleted
+; Output: rbx - new string
+_delete_character:
+    mov r8, 0
+    mov r9, 0
+    mov rbx, string_2
+    .loop:
+        mov al, [rcx]
+        cmp al, 0
+        je .exit_loop
+        cmp al, [rdx]
+        jne .continue
+        je .delete
+    .continue:
+        mov [rbx], al
+        inc rcx
+        inc rbx
+        inc r8
+        jmp .loop
+    .delete:
+        inc rcx
+        inc r9
+        jmp .loop
+    .exit_loop:
+        sub rbx, r8
+        ret
 
 _option6Selected:
     mov rax, selected_option_6
