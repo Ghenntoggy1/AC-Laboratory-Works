@@ -68,6 +68,7 @@ section .data
     input_substring_replacement_message db 'Input Replacement Substring: ', 0
     output_substring_to_replace_message db 'To Replace: ', 0
     output_substring_replacement_message db 'Replacement: ', 0
+    output_replaced_message db 'Replaced String: ', 0
 
     input_character_message db 'Input character that will be removed: ', 0
     output_character_message db 'Your character: ', 0
@@ -291,11 +292,13 @@ _getStrings_Task:
 _loop_newline_elimination:
     inc rsi                     ; Increment RSI to point to the second character
     inc r10
+    cmp byte[rsi], 0
+    je .end_loop_elimination
     cmp byte[rsi], 0xa          ; Compare RSI value in byte form with "\n" in byte form - 0xa
     je _eliminateNextLineSymbol ; If user input contains new line symbol, jump to subroutine that will put "0" symbol - termination symbol
     jne _loop_newline_elimination
-    
-    ret ; Return
+    .end_loop_elimination:
+        ret ; Return
 
     ; subroutine that will eliminate next line symbol from user choice.
     ; input: RSI pointer to next symbol in user choice after digit.
@@ -554,7 +557,7 @@ _option3Selected:
     mov rax, selected_option_3
     call _print
 
-    mov rax, input_substring_message
+    mov rax, input_string_message
     call _print
     mov rsi, string_1
     call _getStrings_Task
@@ -596,12 +599,27 @@ _option3Selected:
     mov rax, new_line
     call _print
 
+    mov rsi, string_2
+    call _findLengthString
+    mov r10, rcx
+
     mov rcx, string_1
     mov rdx, string_2
     mov rbx, string_3
-    ; rcx - original string rdx - original substring rbx - replacement substring
+    mov r8, result_string
+    
+    ; rcx - original string rdx - original substring rbx - replacement substring r8 - result string
     call _replace_substring
 
+    mov rax, output_replaced_message
+    call _print
+
+    ; sub r8, r11
+    mov rax, r8
+    call _print
+
+    mov rax, new_line
+    call _print
 
     mov rdi, string_1     ; Destination pointer for string_1
     mov rcx, 256          ; Number of bytes to clear
@@ -615,16 +633,28 @@ _option3Selected:
     mov rcx, 256          ; Number of bytes to clear
     rep stosb             ; Clear string_3
 
+    mov rdi, result_string
+    mov rcx, 256*2
+    rep stosb
+
     xor r8, r8
     xor r9, r9
-    ; xor r10, r10
+    xor r10, r10
+    xor r11, r11
+    xor r14, r14
     jmp _menu
 
+; Procedure to replace a substring from a string with another substring
+; Input: rcx - original string
+;        rdx - original substring
+;        rbx - replacement substring
+;        r8  - address where the result string will be stored
+; Output: r8 - replaced string
 _replace_substring:
-    mov r10, 0 ; index of substring found
+    mov r9, 0
     mov r11, 0
-    mov r12, 0
-    ; Compare two null-terminated strings pointed to by rcx and rdx
+    mov r14, 0
+    mov r15, 0
     .loop:
         mov al, [rcx]
         cmp al, 0
@@ -632,44 +662,62 @@ _replace_substring:
         cmp al, [rdx]
         jne .mismatch
         je .match
-        jmp .loop
     .match:
-        inc rcx
-        inc rdx
-        inc r11
+        inc rcx ; next symbol in original string
+        inc rdx ; next symbol in replaced string
+        inc r9
         cmp byte [rdx], 0
         je .found_substring
+        jne .not_full_substring
         cmp byte [rcx], 0
         je .exit_loop
         jmp .loop
     .mismatch:
-        inc rcx
-        inc r10
+        cmp r15, 0
+        jg .restore_substring
+        je .not_restore_substring
+        .restore_substring:
+            mov rdx, string_2
+            add rdx, r15
+            mov r15, 0
+        .not_restore_substring:
+            mov [r8], al
+            inc rcx
+            inc r8
+            inc r11
+            jmp .loop
+        
+    .not_full_substring:
+        inc r14  ; use r14 counter to verify if full substring
+        mov [r8], al
+        inc r8
+        inc r11
+        inc r15
         jmp .loop
     .found_substring:
-        sub rdx, r11
-        mov r12, r11
-        push rdx
-        push rcx
-        mov rax, found_substring_message
-        call _print
-        mov rax, r10
-        mov rbx, 10
-        call _convert_to_string
-        mov rax, rdi
-        call _print
-        mov rax, new_line
-        call _print
-
-        
-
-        pop rcx
-        pop rdx
-        add r10, r12
-        xor r11, r11
+        sub r8, r14
+        sub r11, r14
+        xor r14, r14
+        mov r13, 0
+        mov r15, 0
+        .loop_new_substring:
+            mov al, [rbx]
+            mov [r8], al
+            cmp al, 0
+            je .end_loop_new_substring
+            inc rbx
+            inc r8
+            inc r11
+            inc r13
+            jmp .loop_new_substring
+        .end_loop_new_substring:
+        sub rbx, r13
+        sub rdx, r10
         jmp .loop
     .exit_loop:
+        sub r8, r11
         ret
+
 _option4Selected:
     mov rax, selected_option_4
     call _print
@@ -681,10 +729,6 @@ _option4Selected:
 
     mov rsi, string_1
     call _findLengthString ; rsi - string, rcx - length
-    ; mov rax, rcx
-    ; mov rbx, 10
-    ; call _convert_to_string ; rax - string, rbx - base, rdi - converted to string value
-    ; mov rax, rdi
     
     mov rax, string_1  ; string to be inversed is in RAX register
     add rax, rcx       ; Point to the end of the string
@@ -712,6 +756,7 @@ _option4Selected:
     rep stosb             ; Clear string_2
 
     jmp _menu
+
 _invert_string:
     mov r8, rcx
     .invert_loop:
@@ -761,8 +806,8 @@ _option5Selected:
     mov rax, input_character_message
     call _print
     mov rsi, character
-    call _getStrings_Task
-
+    call _getCharacter_Task
+    call _clearInputBuffer
     mov rax, output_character_message
     call _print
     mov rax, character
@@ -787,7 +832,6 @@ _option5Selected:
         call _print
         mov rax, new_line
         call _print
-
     mov rdi, string_1     ; Destination pointer for string_1
     mov rcx, 256          ; Number of bytes to clear
     rep stosb             ; Clear string_1
@@ -807,6 +851,18 @@ _option5Selected:
     xor r8, r8
     xor r9, r9
     jmp _menu
+
+; subroutine to get the input from user
+; input: RSI Register contains the variable where to store the string
+; output: RSI Register contains User Input String methods
+_getCharacter_Task:
+    mov rax, SYS_READ         ; move "0" code into RAX for syscall ID for READING (ID)
+    mov rdi, STDIN_FILE_DESCR ; move "0" FILE DESCRIPTOR for STANDART INPUT (arg 1)
+    mov rdx, 1                ; move "256" into RDX Register, which will signify how many characters to take from user (arg 3)
+    syscall                   ; call Kernel
+    mov r10, 0
+    call _loop_newline_elimination
+    ret
 
 ; Procedure that deletes a certain character from the original string input from user
 ; Input: rcx - original string
