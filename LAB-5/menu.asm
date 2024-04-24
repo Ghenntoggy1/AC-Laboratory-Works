@@ -6,6 +6,7 @@ STDIN_FILE_DESCR equ 0  ; standart input file descriptor
 
 STDOUT_FILE_DESCR equ 1 ; standart output file descriptor
 STDERR_FILE_DESCR equ 2 ; standart error file descriptor
+number_task_18 equ 25603
 
 ; %include "test.asm"
 
@@ -20,9 +21,9 @@ section .data
     task_4 db 'Option 4 - Task 9: Inverting a string.', 0xa, 0
     task_5 db 'Option 5 - Task 15: Deleting a character from a string.', 0xa, 0
     task_6 db 'Option 6 - Task 18: Converting a Number to a String.', 0xa, 0
-    task_7 db 'Option 7 - Task 20: Converting a String to a Real Number.', 0xa, 0
+    task_7 db 'Option 7 - Task 30: Dividing two numbers.', 0xa, 0
     task_8 db 'Option 8 - Task 35: Generating a random number.', 0xa, 0
-    task_9 db 'Option 9 - Task 44: Determining the arithmetic mean of a list of numbers.', 0xa, 0
+    task_9 db 'Option 9 - Task 43: Determining the arithmetic mean of two numbers.', 0xa, 0
     task_10 db 'Option 10 - Task 50: Calculating the product of elements in a list of numbers.', 0xa, 0
     exit_0 db 'Option 0 - Exit Program.', 0xa, 0
     selected_option_1 db 'Option 1 selected.', 0xa, 0
@@ -74,6 +75,24 @@ section .data
     output_character_message db 'Your character: ', 0
     no_character_found_message db 'This character is not present in the original string', 0xa, 0
 
+    input_numbers_array_message db 'Input Number: ', 0
+    output_numbers_array_message db 'Array: ', 0
+    output_prod_array_message db 'Prod: ', 0
+
+    output_converted_number db 'Converted Number: ', 0
+
+    input_number_1_message db 'Input Number 1: ',0
+    input_number_2_message db 'Input Number 2: ',0
+    output_number_1_message db 'Your Number 1: ',0
+    output_number_2_message db 'Your Number 2: ',0
+    output_wrong_divisor db 'Divisor should be different from 0!', 0xa,0
+    output_quotient_message db 'Quotient: ',0
+    output_remainder_message db 'Remainder: ',0
+
+    ; lst_numbers times 10 dq 1
+    lst_numbers dq 10 dup(1)
+    output_product db 'Product: ', 0
+
 section .bss
     user_choice resb 2 ; reserve 2 bytes for User Choice
     buffer resb 22     ; Buffer to hold the resulting string (up to 20 characters + whitespace + null terminator)
@@ -92,6 +111,20 @@ section .bss
 
     ; Task 5
     character resb 1
+
+    ; Task 18
+    number_string resb 22
+
+    ; Task 30
+    number_1_string resq 1
+    number_2_string resq 1
+
+    ; Task 44, 50
+    str_list resb 100*100     ; reserve space for 100 strings of maximum length 100
+    list_index resd 1
+
+    sum resq 10
+
 section .text
     global _start
 _start:
@@ -194,7 +227,7 @@ _generateNumbers:
     mov rcx, r9
     sub rcx, r8
     add rcx, 1
-    div     rcx                  ; EDX:EAX / ECX --> EAX quotient, EDX remainder
+    div     rcx                  ; EDX:RAX / RCX --> RAX quotient, RDX remainder
     mov     rax, rdx             ; RAX = [0,54]
     add     rax, r8 ; Adjusting range to [1, 55]
 
@@ -896,11 +929,130 @@ _delete_character:
 _option6Selected:
     mov rax, selected_option_6
     call _print
+    
+    mov rax, number_task_18
+    mov rdi, buffer
+    mov rbx, 10
+    call _convert_to_string
+
+    mov rsi, rdi            ; Store the address of the converted value in RSI
+    mov rdi, number_string  ; Destination address where will be stored the converted value
+    mov rcx, 22             ; Length of the string to copy
+    rep movsb               ; Copy the string from RSI to RDI
+
+    mov rax, output_converted_number
+    call _print
+    mov rax, number_string
+    call _print
+    mov rax, new_line
+    call _print
+
+    ; TODO: clear variables
+    mov rdi, buffer       ; Destination pointer for string_1
+    mov rcx, 22           ; Number of bytes to clear
+    rep stosb             ; Clear string_1
+
+    mov rdi, number_string       ; Destination pointer for string_1
+    mov rcx, 22           ; Number of bytes to clear
+    rep stosb             ; Clear string_1
+
+
+    xor rax, rax
+    xor rdi, rdi
+    xor rcx, rcx
+    xor rbx, rbx
     jmp _menu
 
 _option7Selected:
     mov rax, selected_option_7
     call _print
+
+    mov rax, input_number_1_message
+    call _print
+    mov rsi, number_1_string
+    call _getStrings_Task
+
+    mov rsi, number_1_string
+    call _ascii_to_int
+    mov r8, rax
+
+    mov rax, output_number_1_message
+    call _print
+    mov rax, number_1_string
+    call _print
+    mov rax, new_line
+    call _print
+
+    .while_zero:
+        mov rax, input_number_2_message
+        call _print
+        mov rsi, number_2_string
+        call _getStrings_Task
+
+        mov rsi, number_2_string
+        call _ascii_to_int
+        mov r9, rax
+        cmp r9, 0
+        je .input_equal_0
+        jne .end_loop_for_0
+        .input_equal_0:
+            mov rax, output_wrong_divisor
+            call _print
+            je .while_zero
+    .end_loop_for_0:
+    mov rax, output_number_2_message
+    call _print
+    mov rax, number_2_string
+    call _print
+    mov rax, new_line
+    call _print
+
+    xor rdx, rdx ; prepare remainder
+    mov rax, r8  ; dividend
+    div r9       ; divisor
+
+    mov r8, rax  ; quotient
+    mov r9, rdx  ; remainder
+
+    mov rax, r8
+    mov rbx, 10
+    call _convert_to_string
+    xor r8, r8
+    mov r8, rdi
+
+    mov rax, output_quotient_message
+    call _print
+    mov rax, r8
+    call _print
+    mov rax, new_line
+    call _print
+
+    mov rax, r9
+    mov rbx, 10
+    call _convert_to_string
+    xor r9, r9
+    mov r9, rdi
+
+    mov rax, output_remainder_message
+    call _print
+    mov rax, r9
+    call _print
+    mov rax, new_line
+    call _print
+
+    mov rdi, number_1_string     ; Destination pointer for string_1
+    mov rcx, 1          ; Number of bytes to clear
+    rep stosq             ; Clear string_1
+
+    mov rdi, number_2_string     ; Destination pointer for string_2
+    mov rcx, 1          ; Number of bytes to clear
+    rep stosq             ; Clear string_2
+
+    xor r8, r8
+    xor r9, r9
+    xor rax, rax
+    xor rdi, rdi
+    xor rbx, rbx
     jmp _menu
 
 _option8Selected:
@@ -945,29 +1097,29 @@ _invalidBounds:
     ret
 
 _getBounds:
-        mov rax, lower_bound_input
-        call _print
-        mov rsi, lower_bound_task_rnd
-        call _getBoundRND
-        mov rax, lower_bound_print
-        call _print
-        mov rax, lower_bound_task_rnd
-        call _print
-        mov rax, new_line
-        call _print
+    mov rax, lower_bound_input
+    call _print
+    mov rsi, lower_bound_task_rnd
+    call _getBoundRND
+    mov rax, lower_bound_print
+    call _print
+    mov rax, lower_bound_task_rnd
+    call _print
+    mov rax, new_line
+    call _print
 
-        mov rax, upper_bound_input
-        call _print
-        mov rsi, upper_bound_task_rnd
-        call _getBoundRND
-        mov rax, upper_bound_print
-        call _print
-        mov rax, upper_bound_task_rnd
-        call _print
-        mov rax, new_line
-        call _print
+    mov rax, upper_bound_input
+    call _print
+    mov rsi, upper_bound_task_rnd
+    call _getBoundRND
+    mov rax, upper_bound_print
+    call _print
+    mov rax, upper_bound_task_rnd
+    call _print
+    mov rax, new_line
+    call _print
 
-        ret
+    ret
 
 _getBoundRND:
     mov rax, SYS_READ         ; move "0" code into RAX for syscall ID for READING (ID)
@@ -982,12 +1134,144 @@ _getBoundRND:
 _option9Selected:
     mov rax, selected_option_9
     call _print
+
+     mov rax, input_number_1_message
+    call _print
+    mov rsi, number_1_string
+    call _getStrings_Task
+
+    mov rsi, number_1_string
+    call _ascii_to_int
+    mov r8, rax
+
+    mov rax, output_number_1_message
+    call _print
+    mov rax, number_1_string
+    call _print
+    mov rax, new_line
+    call _print
+
+    mov rax, input_number_2_message
+    call _print
+    mov rsi, number_2_string
+    call _getStrings_Task
+
+    mov rsi, number_2_string
+    call _ascii_to_int
+    mov r9, rax
+
+    mov rax, output_number_2_message
+    call _print
+    mov rax, number_2_string
+    call _print
+    mov rax, new_line
+    call _print
+
+    xor rax, rax
+    xor rdx, rdx
+
+    mov rax, r8
+    add rax, r9
+    mov r8, 2
+    div r8
+
+    mov r8, rax  ; quotient
+    mov r9, rdx  ; remainder
+
+    mov rax, r8
+    mov rbx, 10
+    call _convert_to_string
+    xor r8, r8
+    mov r8, rdi
+
+    mov rax, output_quotient_message
+    call _print
+    mov rax, r8
+    call _print
+    mov rax, new_line
+    call _print
+
+    mov rax, r9
+    mov rbx, 10
+    call _convert_to_string
+    xor r9, r9
+    mov r9, rdi
+
+    mov rax, output_remainder_message
+    call _print
+    mov rax, r9
+    call _print
+    mov rax, new_line
+    call _print
+
+    mov rdi, number_1_string     ; Destination pointer for string_1
+    mov rcx, 1          ; Number of bytes to clear
+    rep stosq             ; Clear string_1
+
+    mov rdi, number_2_string     ; Destination pointer for string_2
+    mov rcx, 1          ; Number of bytes to clear
+    rep stosq             ; Clear string_2
+
+    xor r8, r8
+    xor r9, r9
+    xor rax, rax
+    xor rdi, rdi
+    xor rbx, rbx
     jmp _menu
 
 _option10Selected:
     call _clearInputBuffer
     mov rax, selected_option_10
+    mov r9, 1
+    lea r8, lst_numbers
+    xor rcx, rcx
+    .input_loop:
+        push rcx
+        mov rax, input_numbers_array_message
+        call _print
+        mov rax, rsi
+        mov rsi, number_1_string
+        call _getStrings_Task
+        mov rsi, number_1_string
+        call _ascii_to_int
+        mov r10, rax
+        push rax
+        mov rax, r9
+        mul r10
+        mov r9, rax
+        pop rax
+        pop rcx
+        
+        ; Increment the index for the list
+        inc rcx
+        ; Check if the list is full (10 elements in this case)
+        cmp rcx, 10
+        jge .exit_loop
+        ; Otherwise, continue reading input
+        jmp .input_loop
+    .exit_loop:
+
+    mov rax, lst_numbers
+
+
+    mov rax, output_product
     call _print
+    mov rax, r9
+    mov rbx, 10
+    call _convert_to_string
+    mov rax, rdi
+    call _print
+    mov rax, new_line
+    call _print
+    xor rcx, rcx
+    xor rax, rax
+    xor r8, r8
+    xor r9, r9
+    xor r10, r10
+    xor rbx, rbx
+    xor rdx, rdx
+    xor rdi, rdi
+    xor rsi, rsi
     jmp _menu
    
 ; Clear the input buffer
