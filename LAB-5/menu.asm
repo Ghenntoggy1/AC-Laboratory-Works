@@ -6,7 +6,7 @@ STDIN_FILE_DESCR equ 0  ; standart input file descriptor
 
 STDOUT_FILE_DESCR equ 1 ; standart output file descriptor
 STDERR_FILE_DESCR equ 2 ; standart error file descriptor
-number_task_18 equ 25603
+number_task_18 equ 10101
 
 ; %include "test.asm"
 
@@ -176,7 +176,7 @@ _menu:
     call _print
     mov rax, new_line
     call _print
-
+    
     mov rsi, user_choice
     call _ascii_to_int
     mov r8, rax  ; save choice - might not need it
@@ -221,9 +221,7 @@ _menu:
 ; output: print generated random numbers (count = value in rsi)
 _generateNumbers:
     rdtsc                        ; Generate another timestamp for more randomness
-    xor     rdx, rdx             ; Clearing upper part of rdx for division
-    ; mov rcx, r8
-    ; mov     rcx, 55 - 1 + 1      
+    xor     rdx, rdx             ; Clearing upper part of rdx for division     
     mov rcx, r9
     sub rcx, r8
     add rcx, 1
@@ -481,7 +479,6 @@ _option2Selected:
     mov rax, selected_option_2
     call _print
 
-    ; call print_test
     mov rax, input_string_1_message
     call _print
     mov rsi, string_1
@@ -948,9 +945,9 @@ _option6Selected:
     call _print
 
     ; TODO: clear variables
-    mov rdi, buffer       ; Destination pointer for string_1
-    mov rcx, 22           ; Number of bytes to clear
-    rep stosb             ; Clear string_1
+    ; mov rdi, buffer       ; Destination pointer for string_1
+    ; mov rcx, 22           ; Number of bytes to clear
+    ; rep stosb             ; Clear string_1
 
     mov rdi, number_string       ; Destination pointer for string_1
     mov rcx, 22           ; Number of bytes to clear
@@ -1053,6 +1050,7 @@ _option7Selected:
     xor rax, rax
     xor rdi, rdi
     xor rbx, rbx
+    xor rdx, rdx
     jmp _menu
 
 _option8Selected:
@@ -1062,8 +1060,13 @@ _option8Selected:
     call _print
     _loop_rnd:
         call _getBounds
-        mov r8, lower_bound_task_rnd
-        mov r9, upper_bound_task_rnd
+        mov rsi, lower_bound_task_rnd
+        call _ascii_to_int            ; Convert ASCII string to integer
+        mov r8, rax
+
+        mov rsi, upper_bound_task_rnd
+        call _ascii_to_int            ; Convert ASCII string to integer
+        mov r9, rax
         cmp r8, r9
         jg _invalidBounds
 
@@ -1217,6 +1220,7 @@ _option9Selected:
     xor rax, rax
     xor rdi, rdi
     xor rbx, rbx
+    xor rdx, rdx
     jmp _menu
 
 _option10Selected:
